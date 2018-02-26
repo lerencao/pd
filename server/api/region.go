@@ -26,12 +26,15 @@ import (
 	"github.com/pingcap/pd/server"
 	"github.com/pingcap/pd/server/core"
 	"github.com/unrolled/render"
+	"encoding/hex"
 )
 
 type regionInfo struct {
 	ID          uint64              `json:"id"`
 	StartKey    string              `json:"start_key"`
 	EndKey      string              `json:"end_key"`
+	StartKeyHex string              `json:"start_key_hex"`
+	EndKeyHex   string              `json:"end_key_hex"`
 	RegionEpoch *metapb.RegionEpoch `json:"epoch,omitempty"`
 	Peers       []*metapb.Peer      `json:"peers,omitempty"`
 
@@ -51,6 +54,8 @@ func newRegionInfo(r *core.RegionInfo) *regionInfo {
 		ID:          r.Id,
 		StartKey:    strings.Trim(fmt.Sprintf("%q", r.StartKey), "\""),
 		EndKey:      strings.Trim(fmt.Sprintf("%q", r.EndKey), "\""),
+		StartKeyHex: hex.EncodeToString(r.StartKey),
+		EndKeyHex:   hex.EncodeToString(r.EndKey),
 		RegionEpoch: r.RegionEpoch,
 		Peers:       r.Peers,
 
