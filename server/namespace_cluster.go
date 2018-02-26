@@ -33,7 +33,7 @@ type namespaceCluster struct {
 func newNamespaceCluster(c schedule.Cluster, classifier namespace.Classifier, namespace string) *namespaceCluster {
 	stores := make(map[uint64]*core.StoreInfo)
 	for _, s := range c.GetStores() {
-		if classifier.GetStoreNamespace(s) == namespace {
+		if classifier.GetStoreNamespaces(s).Contains(namespace) {
 			stores[s.GetId()] = s
 		}
 	}

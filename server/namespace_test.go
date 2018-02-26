@@ -185,11 +185,15 @@ func newMapClassifer() *mapClassifer {
 	}
 }
 
-func (c *mapClassifer) GetStoreNamespace(store *core.StoreInfo) string {
+func (c *mapClassifer) GetStoreNamespaces(store *core.StoreInfo) namespace.StoreNamespaces {
+	namespaces := make(namespace.StoreNamespaces, 4)
 	if ns, ok := c.stores[store.GetId()]; ok {
-		return ns
+		namespaces = append(namespaces, ns)
 	}
-	return namespace.DefaultNamespace
+	if len(namespaces) == 0 {
+		namespaces = append(namespaces, namespace.DefaultNamespace)
+	}
+	return namespaces
 }
 
 func (c *mapClassifer) GetRegionNamespace(region *core.RegionInfo) string {

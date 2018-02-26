@@ -252,7 +252,7 @@ func NewNamespaceFilter(classifier namespace.Classifier, namespace string) Filte
 }
 
 func (f *namespaceFilter) filter(store *core.StoreInfo) bool {
-	return f.classifier.GetStoreNamespace(store) != f.namespace
+	return !f.classifier.GetStoreNamespaces(store).Contains(f.namespace)
 }
 
 func (f *namespaceFilter) FilterSource(opt Options, store *core.StoreInfo) bool {

@@ -126,17 +126,21 @@ func (c *tableNamespaceClassifier) GetAllNamespaces() []string {
 	return nsList
 }
 
-func (c *tableNamespaceClassifier) GetStoreNamespace(storeInfo *core.StoreInfo) string {
+func (c *tableNamespaceClassifier) GetStoreNamespaces(storeInfo *core.StoreInfo) namespace.StoreNamespaces {
 	c.RLock()
 	defer c.RUnlock()
 
+	namespaces := make([]string, 4)
 	for name, ns := range c.nsInfo.namespaces {
 		_, ok := ns.StoreIDs[storeInfo.Id]
 		if ok {
-			return name
+			namespaces = append(namespaces, name)
 		}
 	}
-	return namespace.DefaultNamespace
+	if len(namespaces) == 0 {
+		namespaces = append(namespaces, namespace.DefaultNamespace)
+	}
+	return namespaces
 }
 
 func (c *tableNamespaceClassifier) GetRegionNamespace(regionInfo *core.RegionInfo) string {
