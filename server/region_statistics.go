@@ -90,8 +90,8 @@ func (r *regionStatistics) Observe(region *core.RegionInfo, stores []*core.Store
 		peerTypeIndex |= pendingPeer
 	}
 	for _, store := range stores {
-		ns := r.classifier.GetStoreNamespace(store)
-		if ns == namespace {
+		ns := r.classifier.GetStoreNamespaces(store)
+		if ns.Contains(namespace) {
 			continue
 		}
 		r.stats[incorrectNamespace][regionID] = region

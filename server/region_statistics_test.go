@@ -18,6 +18,7 @@ import (
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
 	"github.com/pingcap/pd/server/core"
+	"github.com/pingcap/pd/server/namespace"
 )
 
 type mockClassifier struct{}
@@ -26,11 +27,11 @@ func (c mockClassifier) GetAllNamespaces() []string {
 	return []string{"global", "unknown"}
 }
 
-func (c mockClassifier) GetStoreNamespace(store *core.StoreInfo) string {
+func (c mockClassifier) GetStoreNamespaces(store *core.StoreInfo) namespace.StoreNamespaces {
 	if store.GetId() < 5 {
-		return "global"
+		return []string{"global"}
 	}
-	return "unknown"
+	return []string{"unknown"}
 }
 
 func (c mockClassifier) GetRegionNamespace(*core.RegionInfo) string {

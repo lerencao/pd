@@ -32,9 +32,21 @@ var DefaultClassifier = defaultClassifier{}
 // belongs.
 type Classifier interface {
 	GetAllNamespaces() []string
-	GetStoreNamespace(*core.StoreInfo) string
+	GetStoreNamespaces(*core.StoreInfo) StoreNamespaces
 	GetRegionNamespace(*core.RegionInfo) string
 	IsNamespaceExist(name string) bool
+}
+
+type StoreNamespaces []string
+
+func (sns StoreNamespaces) Contains(ns string) bool {
+	for _, v := range sns {
+		if v == ns {
+			return true
+		}
+	}
+
+	return false
 }
 
 type defaultClassifier struct{}
@@ -43,8 +55,8 @@ func (c defaultClassifier) GetAllNamespaces() []string {
 	return []string{DefaultNamespace}
 }
 
-func (c defaultClassifier) GetStoreNamespace(*core.StoreInfo) string {
-	return DefaultNamespace
+func (c defaultClassifier) GetStoreNamespaces(*core.StoreInfo) StoreNamespaces {
+	return []string{DefaultNamespace}
 }
 
 func (c defaultClassifier) GetRegionNamespace(*core.RegionInfo) string {

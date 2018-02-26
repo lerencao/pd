@@ -116,13 +116,15 @@ func newStoreStatisticsMap(opt *scheduleOption, classifier namespace.Classifier)
 }
 
 func (m *storeStatisticsMap) Observe(store *core.StoreInfo) {
-	namespace := m.classifier.GetStoreNamespace(store)
-	stat, ok := m.stats[namespace]
-	if !ok {
-		stat = newStoreStatistics(m.opt, namespace)
-		m.stats[namespace] = stat
+	namespaces := m.classifier.GetStoreNamespaces(store)
+	for _, ns := range namespaces {
+		stat, ok := m.stats[ns]
+		if !ok {
+			stat = newStoreStatistics(m.opt, ns)
+			m.stats[ns] = stat
+		}
+		stat.Observe(store)
 	}
-	stat.Observe(store)
 }
 
 func (m *storeStatisticsMap) Collect() {
