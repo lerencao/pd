@@ -188,8 +188,8 @@ func (h *Handler) AddBalanceLeaderScheduler() error {
 }
 
 // AddBalanceRegionScheduler adds a balance-region-scheduler.
-func (h *Handler) AddBalanceRegionScheduler() error {
-	return h.AddScheduler("balance-region")
+func (h *Handler) AddBalanceRegionScheduler(args ...string) error {
+	return h.AddScheduler("balance-region", args...)
 }
 
 // AddBalanceHotRegionScheduler adds a balance-hot-region-scheduler.

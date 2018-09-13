@@ -66,7 +66,25 @@ func (h *schedulerHandler) Post(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "balance-region-scheduler":
-		if err := h.AddBalanceRegionScheduler(); err != nil {
+		var args []string
+		argNames := []string{
+			"min_interval",
+			"max_interval",
+			"interval_growth_type",
+		}
+		for _, argName := range argNames {
+			argValue, ok := input[argName].(string)
+			if ok {
+				args = append(args, argValue)
+			} else {
+				break
+			}
+		}
+		if len(args) != 0 && len(args) != 3 {
+			args = args[:0]
+		}
+
+		if err := h.AddBalanceRegionScheduler(args...); err != nil {
 			h.r.JSON(w, http.StatusInternalServerError, err.Error())
 			return
 		}

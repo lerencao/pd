@@ -15,7 +15,9 @@ package schedulers
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"strconv"
+	"time"
 
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/pd/server/cache"
@@ -26,7 +28,35 @@ import (
 
 func init() {
 	schedule.RegisterScheduler("balance-region", func(limiter *schedule.Limiter, args []string) (schedule.Scheduler, error) {
-		return newBalanceRegionScheduler(limiter), nil
+		if len(args) == 0 {
+			return newBalanceRegionScheduler(limiter), nil
+		}
+
+		if len(args) == 3 {
+			minInterval, err := time.ParseDuration(args[0])
+			if err != nil {
+				return nil, err
+			}
+
+			maxInterval, err := time.ParseDuration(args[1])
+			if err != nil {
+				return nil, err
+			}
+
+			growthType, err := strconv.Atoi(args[2])
+			if err != nil {
+				return nil, err
+			}
+
+			if growthType < int(exponentailGrowth) || growthType > int(zeroGrowth) {
+				return nil, errors.New("growthType should be 0, 1, or 2")
+			}
+
+			base := newBaseSchedulerWithIntervalGrowth(limiter, minInterval, maxInterval, intervalGrowthType(growthType))
+			return newBalanceRegionSchedulerWithBaseScheduler(base), nil
+		}
+
+		return nil, errors.New("balance-region only accept 0 args or 3 args")
 	})
 }
 
@@ -42,12 +72,15 @@ type balanceRegionScheduler struct {
 // newBalanceRegionScheduler creates a scheduler that tends to keep regions on
 // each store balanced.
 func newBalanceRegionScheduler(limiter *schedule.Limiter) schedule.Scheduler {
+	return newBalanceRegionSchedulerWithBaseScheduler(newBaseScheduler(limiter))
+}
+
+func newBalanceRegionSchedulerWithBaseScheduler(base *baseScheduler) schedule.Scheduler {
 	taintStores := newTaintCache()
 	filters := []schedule.Filter{
 		schedule.StoreStateFilter{MoveRegion: true},
 		schedule.NewCacheFilter(taintStores),
 	}
-	base := newBaseScheduler(limiter)
 	return &balanceRegionScheduler{
 		baseScheduler: base,
 		selector:      schedule.NewBalanceSelector(core.RegionKind, filters),
