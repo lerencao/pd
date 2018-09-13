@@ -53,18 +53,32 @@ func intervalGrow(x time.Duration, maxInterval time.Duration, typ intervalGrowth
 
 type baseScheduler struct {
 	limiter *schedule.Limiter
+
+	minInterval        time.Duration
+	maxInterval        time.Duration
+	intervalGrowthType intervalGrowthType
 }
 
 func newBaseScheduler(limiter *schedule.Limiter) *baseScheduler {
-	return &baseScheduler{limiter: limiter}
+	return newBaseSchedulerWithIntervalGrowth(limiter, MinScheduleInterval, MaxScheduleInterval, exponentailGrowth)
+}
+
+func newBaseSchedulerWithIntervalGrowth(limiter *schedule.Limiter, minInterval, maxInterval time.Duration, growthType intervalGrowthType) *baseScheduler {
+	return &baseScheduler{
+		limiter: limiter,
+
+		minInterval:        minInterval,
+		maxInterval:        maxInterval,
+		intervalGrowthType: growthType,
+	}
 }
 
 func (s *baseScheduler) GetMinInterval() time.Duration {
-	return MinScheduleInterval
+	return s.minInterval
 }
 
 func (s *baseScheduler) GetNextInterval(interval time.Duration) time.Duration {
-	return intervalGrow(interval, MaxScheduleInterval, exponentailGrowth)
+	return intervalGrow(interval, s.maxInterval, s.intervalGrowthType)
 }
 
 func (s *baseScheduler) Prepare(cluster schedule.Cluster) error { return nil }
