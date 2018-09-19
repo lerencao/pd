@@ -144,44 +144,63 @@ func (l *balanceAdjacentRegionScheduler) Schedule(cluster schedule.Cluster, opIn
 	regions := cluster.ScanRegions(l.lastKey, scanLimit)
 	// scan to the end
 	if len(regions) <= 1 {
-		l.adjacentRegionsCount = 0
 		schedulerStatus.WithLabelValues(l.GetName(), "adjacent_count").Set(float64(l.adjacentRegionsCount))
+		l.adjacentRegionsCount = 0
 		l.lastKey = []byte("")
 		return nil
 	}
 
-	// calculate max adjacentRegions and record to the cache
-	adjacentRegions := make([]*core.RegionInfo, 0, scanLimit)
-	adjacentRegions = append(adjacentRegions, regions[0])
-	maxLen := 0
-	for i, r := range regions[1:] {
-		l.lastKey = r.GetStartKey()
+	maxLenAdjacentRegions := getMaxLenAdjacentRegions(regions)
 
-		// append if the region are adjacent
-		lastRegion := adjacentRegions[len(adjacentRegions)-1]
-		if lastRegion.GetLeader().GetStoreId() == r.GetLeader().GetStoreId() && bytes.Equal(lastRegion.GetEndKey(), r.GetStartKey()) {
-			adjacentRegions = append(adjacentRegions, r)
-			if i != len(regions)-2 { // not the last element
+	l.lastKey = regions[len(regions)-1].GetStartKey()
+	l.cacheRegions.regions = append(l.cacheRegions.regions, maxLenAdjacentRegions...)
+	l.adjacentRegionsCount += len(maxLenAdjacentRegions)
+
+	return l.process(cluster)
+}
+
+// Calculate max adjacentRegions,
+// it may return an adjacent-regions block which length is great than 1, or return empty block.
+func getMaxLenAdjacentRegions(regions []*core.RegionInfo) []*core.RegionInfo {
+	curAdjacentRegions := make([]*core.RegionInfo, 0, len(regions))
+	maxLenAdjacentRegions := make([]*core.RegionInfo, 0, len(regions))
+	// When pd just bootstraps or leader transfers to another server,
+	// some region heartbeats are not received, whose leaders is not known for now.
+	// These holes should be skipped.
+
+	for i, r := range regions {
+		// get first heartbeat-ed region
+		if len(curAdjacentRegions) == 0 {
+			if r.GetLeader() != nil {
+				curAdjacentRegions = append(curAdjacentRegions, r)
+			}
+			continue
+		}
+
+		lastRegion := curAdjacentRegions[len(curAdjacentRegions)-1]
+
+		if r.GetLeader() != nil &&
+			lastRegion.GetLeader().GetStoreId() == r.GetLeader().GetStoreId() &&
+			bytes.Equal(lastRegion.GetEndKey(), r.GetStartKey()) {
+			curAdjacentRegions = append(curAdjacentRegions, r)
+			if i != len(regions)-1 { // if not come to the last element
 				continue
 			}
 		}
 
-		if len(adjacentRegions) == 1 {
-			adjacentRegions[0] = r
-		} else {
-			// got an max length adjacent regions in this range
-			if maxLen < len(adjacentRegions) {
-				l.cacheRegions.clear()
-				maxLen = len(adjacentRegions)
-				l.cacheRegions.regions = append(l.cacheRegions.regions, adjacentRegions...)
-				adjacentRegions = adjacentRegions[:0]
-				adjacentRegions = append(adjacentRegions, r)
-			}
+		if len(curAdjacentRegions) > 1 && len(curAdjacentRegions) > len(maxLenAdjacentRegions) {
+			maxLenAdjacentRegions = maxLenAdjacentRegions[:0]
+			maxLenAdjacentRegions = append(maxLenAdjacentRegions, curAdjacentRegions...)
+		}
+
+		curAdjacentRegions = curAdjacentRegions[:0]
+		// if not meat a hole, use current region as the start point of next adjacent-regions
+		if r.GetLeader() != nil {
+			curAdjacentRegions = append(curAdjacentRegions, r)
 		}
 	}
 
-	l.adjacentRegionsCount += maxLen
-	return l.process(cluster)
+	return maxLenAdjacentRegions
 }
 
 func (l *balanceAdjacentRegionScheduler) process(cluster schedule.Cluster) []*schedule.Operator {
