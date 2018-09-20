@@ -505,7 +505,6 @@ func (s *Server) SetReplicationConfig(cfg ReplicationConfig) error {
 	}
 	old := s.scheduleOpt.rep.load()
 	s.scheduleOpt.rep.store(&cfg)
-	s.scheduleOpt.persist(s.kv)
 	if err := s.scheduleOpt.persist(s.kv); err != nil {
 		return err
 	}
