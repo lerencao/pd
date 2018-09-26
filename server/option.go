@@ -191,6 +191,17 @@ func (o *scheduleOption) AddSchedulerCfg(tp string, args []string) error {
 			o.store(v)
 			return nil
 		}
+
+		// for default scheduler, make change arguments possible
+		if IsDefaultScheduler(tp) && tp == schedulerCfg.Type {
+			if schedulerCfg.Disable {
+				schedulerCfg.Disable = false
+				schedulerCfg.Args = args
+				v.Schedulers[i] = schedulerCfg
+				o.store(v)
+			}
+			return nil
+		}
 	}
 	v.Schedulers = append(v.Schedulers, SchedulerConfig{Type: tp, Args: args, Disable: false})
 	o.store(v)

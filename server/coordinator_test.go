@@ -597,8 +597,17 @@ func (s *testCoordinatorSuite) TestPersistScheduler(c *C) {
 	bls, err := schedule.CreateScheduler("balance-leader", co.limiter)
 	c.Assert(err, IsNil)
 	c.Assert(co.addScheduler(bls), IsNil)
-	brs, err := schedule.CreateScheduler("balance-region", co.limiter)
+
+	brs, err := schedule.CreateScheduler("balance-region", co.limiter, "30s", "60s", "1")
 	c.Assert(err, IsNil)
+	c.Assert(co.addScheduler(brs, "30s", "60s", "1"), IsNil)
+	c.Assert(co.schedulers, HasLen, 5)
+	c.Assert(co.cluster.opt.GetSchedulers(), HasLen, 7)
+
+	brs, err = schedule.CreateScheduler("balance-region", co.limiter)
+	c.Assert(err, IsNil)
+	c.Assert(co.addScheduler(brs), NotNil)
+	c.Assert(co.removeScheduler("balance-region-scheduler"), IsNil)
 	c.Assert(co.addScheduler(brs), IsNil)
 	c.Assert(co.schedulers, HasLen, 5)
 	// the scheduler option should contain 7 items
