@@ -200,22 +200,22 @@ func (o *scheduleOption) AddSchedulerCfg(tp string, args []string) error {
 func (o *scheduleOption) RemoveSchedulerCfg(name string) error {
 	c := o.load()
 	v := c.clone()
-	schedulerCfgs := make([]SchedulerConfig, 0, len(v.Schedulers))
 	for i, schedulerCfg := range v.Schedulers {
 		// To create a temporary scheduler is just used to get scheduler's name
 		tmp, err := schedule.CreateScheduler(schedulerCfg.Type, schedule.NewLimiter(), schedulerCfg.Args...)
 		if err != nil {
 			return err
 		}
-		// remove all schedulers with same name, and don't care if it is default schedulers
-		if tmp.GetName() != name {
-			schedulerCfgs = append(schedulerCfgs, v.Schedulers[i])
+		if tmp.GetName() == name {
+			if IsDefaultScheduler(tmp.GetType()) {
+				schedulerCfg.Disable = true
+				v.Schedulers[i] = schedulerCfg
+			} else {
+				v.Schedulers = append(v.Schedulers[:i], v.Schedulers[i+1:]...)
+			}
+			o.store(v)
+			return nil
 		}
-	}
-
-	if len(schedulerCfgs) != len(v.Schedulers) {
-		v.Schedulers = schedulerCfgs
-		o.store(v)
 	}
 	return nil
 }
