@@ -318,21 +318,24 @@ func (o *scheduleOption) reload(kv *core.KV) error {
 
 func (o *scheduleOption) adjustScheduleCfg(persistentCfg *Config) {
 	scheduleCfg := o.load().clone()
-	for i, s := range scheduleCfg.Schedulers {
-		for _, ps := range persistentCfg.Schedule.Schedulers {
-			if s.Type == ps.Type && reflect.DeepEqual(s.Args, ps.Args) {
-				scheduleCfg.Schedulers[i].Disable = ps.Disable
-				break
-			}
-		}
-	}
 	restoredSchedulers := make([]SchedulerConfig, 0, len(persistentCfg.Schedule.Schedulers))
 	for _, ps := range persistentCfg.Schedule.Schedulers {
 		needRestore := true
-		for _, s := range scheduleCfg.Schedulers {
-			if s.Type == ps.Type && reflect.DeepEqual(s.Args, ps.Args) {
-				needRestore = false
-				break
+		for i, s := range scheduleCfg.Schedulers {
+			if s.Type == ps.Type {
+				// for default scheduler, load args from kv
+				if IsDefaultScheduler(ps.Type) {
+					scheduleCfg.Schedulers[i].Disable = ps.Disable
+					scheduleCfg.Schedulers[i].Args = ps.Args
+					needRestore = false
+					break
+				}
+
+				if reflect.DeepEqual(s.Args, ps.Args) {
+					scheduleCfg.Schedulers[i].Disable = ps.Disable
+					needRestore = false
+					break
+				}
 			}
 		}
 		if needRestore {
