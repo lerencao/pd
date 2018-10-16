@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pingcap/pd/server/schedule"
 	"github.com/pkg/errors"
@@ -42,24 +43,26 @@ func init() {
 
 type scatterRangeScheduler struct {
 	*baseScheduler
-	rangeName     string
-	startKey      []byte
-	endKey        []byte
-	balanceLeader schedule.Scheduler
-	balanceRegion schedule.Scheduler
+	rangeName         string
+	startKey          []byte
+	endKey            []byte
+	balanceLeader     schedule.Scheduler
+	balanceRegion     schedule.Scheduler
+	tolerantSizeRatio float64
 }
 
 // newScatterRangeScheduler creates a scheduler that tends to keep leaders on
 // each store balanced.
 func newScatterRangeScheduler(limiter *schedule.Limiter, args []string) schedule.Scheduler {
-	base := newBaseScheduler(limiter)
+	base := newBaseSchedulerWithIntervalGrowth(limiter, 60*time.Second, 120*time.Second, linearGrowth)
 	return &scatterRangeScheduler{
-		baseScheduler: base,
-		startKey:      []byte(args[0]),
-		endKey:        []byte(args[1]),
-		rangeName:     args[2],
-		balanceLeader: newBalanceLeaderScheduler(limiter),
-		balanceRegion: newBalanceRegionScheduler(limiter),
+		baseScheduler:     base,
+		startKey:          []byte(args[0]),
+		endKey:            []byte(args[1]),
+		rangeName:         args[2],
+		balanceLeader:     newBalanceLeaderScheduler(limiter),
+		balanceRegion:     newBalanceRegionScheduler(limiter),
+		tolerantSizeRatio: 5,
 	}
 }
 
@@ -72,7 +75,8 @@ func (l *scatterRangeScheduler) GetType() string {
 }
 
 func (l *scatterRangeScheduler) IsScheduleAllowed(cluster schedule.Cluster) bool {
-	return l.limiter.OperatorCount(schedule.OpRange) < cluster.GetRegionScheduleLimit()
+	opCnt := l.limiter.OperatorCount(schedule.OpRange)
+	return opCnt < cluster.GetRegionScheduleLimit() && opCnt < cluster.GetLeaderScheduleLimit()
 }
 
 func (l *scatterRangeScheduler) getOperators(opInfuence schedule.OpInfluence) []*schedule.Operator {
@@ -90,6 +94,9 @@ func (l *scatterRangeScheduler) Schedule(cluster schedule.Cluster, opInfluence s
 	schedulerCounter.WithLabelValues(l.GetName(), "schedule").Inc()
 	c := schedule.GenRangeCluster(cluster, l.startKey, l.endKey)
 	c.SetTolerantSizeRatio(2)
+	if l.tolerantSizeRatio > 0 {
+		c.SetTolerantSizeRatio(l.tolerantSizeRatio)
+	}
 	influence := l.getOperators(opInfluence)
 	ops := l.balanceLeader.Schedule(c, schedule.NewOpInfluence(influence, cluster))
 	if len(ops) > 0 {
