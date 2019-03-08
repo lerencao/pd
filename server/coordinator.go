@@ -195,20 +195,23 @@ func (c *coordinator) run() {
 	k := 0
 	scheduleCfg := c.cluster.opt.load().clone()
 	for _, schedulerCfg := range scheduleCfg.Schedulers {
-		if schedulerCfg.Disable {
-			scheduleCfg.Schedulers[k] = schedulerCfg
-			k++
-			log.Info("skip create scheduler", zap.String("scheduler-type", schedulerCfg.Type))
-			continue
-		}
 		s, err := schedule.CreateScheduler(schedulerCfg.Type, c.opController, schedulerCfg.Args...)
 		if err != nil {
-			log.Error("can not create scheduler", zap.String("scheduler-type", schedulerCfg.Type), zap.Error(err))
+			log.Error(
+				"can not create scheduler",
+				zap.String("scheduler-type", schedulerCfg.Type),
+				zap.Bool("Disable", schedulerCfg.Disable),
+				zap.Error(err),
+			)
 			continue
 		}
-		log.Info("create scheduler", zap.String("scheduler-name", s.GetName()))
-		if err = c.addScheduler(s, schedulerCfg.Args...); err != nil {
-			log.Error("can not add scheduler", zap.String("scheduler-name", s.GetName()), zap.Error(err))
+		if schedulerCfg.Disable {
+			log.Info("skip add scheduler", zap.String("scheduler-name", s.GetName()))
+		} else {
+			log.Info("create scheduler", zap.String("scheduler-name", s.GetName()))
+			if err = c.addScheduler(s, schedulerCfg.Args...); err != nil {
+				log.Error("can not add scheduler", zap.String("scheduler-name", s.GetName()), zap.Error(err))
+			}
 		}
 
 		// Only records the valid scheduler config.
